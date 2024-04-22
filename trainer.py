@@ -7,6 +7,11 @@ import torch as th
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
+#from epymarl_imports.q_learner import QLearner
+from pantheonrl.epymarl_imports import QLearner, VDNMixer, QMixer, EpisodeBatch
+from pantheonrl.epymarl_imports.non_shared_controller import NonSharedMAC
+
+
 
 from pantheonrl.common.wrappers import frame_wrap, recorder_wrap
 from pantheonrl.common.agents import OnPolicyAgent, StaticPolicyAgent
@@ -30,7 +35,7 @@ ENV_LIST = ['RPS-v0', 'BlockEnv-v0', 'BlockEnv-v1', 'LiarsDice-v0',
             'OvercookedMultiEnv-v0']
 
 ADAP_TYPES = ['ADAP', 'ADAP_MULT']
-EGO_LIST = ['PPO', 'ModularAlgorithm', 'LOAD'] + ADAP_TYPES
+EGO_LIST = ['PPO', 'ModularAlgorithm', 'LOAD', 'QLearner'] + ADAP_TYPES
 PARTNER_LIST = ['PPO', 'DEFAULT', 'FIXED'] + ADAP_TYPES
 
 
@@ -131,8 +136,13 @@ def generate_ego(env, args):
     elif args.ego == 'ModularAlgorithm':
         policy_kwargs = dict(num_partners=len(args.alt))
         return ModularAlgorithm(policy=ModularPolicy,
-                                policy_kwargs=policy_kwargs,
-                                **kwargs)
+                                policy_kwargs=policy_kwargs,**kwargs)
+    elif args.ego == 'QLearner':  # Adding QLearner handling
+        scheme = kwargs.get('scheme')
+        groups= None
+        mac= NonSharedMAC(scheme, groups, args)
+        return QLearner(mac=kwargs['mac'], scheme=kwargs.get('scheme', None), 
+                        logger=kwargs.get('logger', None), args=kwargs)
     else:
         raise EnvException("Not a valid policy")
 
@@ -390,6 +400,7 @@ if __name__ == '__main__':
                         help='True when partners should log to output')
 
     parser.add_argument('--preset', type=int, help='Use preset args')
+    parser.add_argument('--n_agents', type=int, help="Number of agents.") # modified this 
 
     args = parser.parse_args()
 
